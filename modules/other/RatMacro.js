@@ -1,4 +1,5 @@
 //Vibecoded SLOP, STILL WORKS FINE :3
+import { isDeveloperModeEnabled } from '../../utils/DeveloperModeState';
 import { OverlayManager } from '../../gui/OverlayUtils';
 import { Chat } from '../../utils/Chat';
 import { MCHand, PathManager } from '../../utils/Constants';
@@ -1209,4 +1210,4 @@ class RatMacro extends ModuleBase {
     }
 }
 
-new RatMacro();
+if (isDeveloperModeEnabled()) new RatMacro();

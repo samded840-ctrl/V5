@@ -61,3 +61,4 @@ import './other/RatProtection';
 import './other/VoidgloomHelper';
 import './other/AutoCombine';
 import './other/SunGeckoMacro';
+import './other/RatMacro';

@@ -1,3 +1,4 @@
+import { Chat } from '../../Chat';
 import { MathUtils } from '../../Math';
 import { Keybind } from '../../player/Keybinding';
 import { PathExecutor } from '../PathExecutor';
@@ -11,7 +12,6 @@ class PathMovement {
         this.complete = false;
         this.state = 'NONE';
         this.decelTicks = 0;
-        this.forcedFlying = false;
 
         this.PREDICT_TICKS = 30;
         this.STOPPING_DISTANCE_THRESHOLD = 0.85;
@@ -32,10 +32,19 @@ class PathMovement {
                 return;
             }
 
+            if (!player.getAbilities().allowFlying) {
+                this.stopMovement();
+                Chat.message('&cPathFlyer: Player is not able to fly?');
+                return;
+            }
+
             if (!player.getAbilities().flying) {
-                this.forcedFlying = true;
-                player.getAbilities().flying = true;
-                player.sendAbilitiesUpdate();
+                if (!Keybind.isKeyDown('space')) {
+                    Keybind.setKey('space', true);
+                } else {
+                    Keybind.setKey('space', false);
+                }
+                return;
             }
 
             this.updateMovement(player);
@@ -51,7 +60,6 @@ class PathMovement {
         this.complete = false;
         this.state = 'MOVING';
         this.decelTicks = 0;
-        this.forcedFlying = false;
     }
 
     getYawToTarget(dx, dz) {
@@ -235,15 +243,6 @@ class PathMovement {
         this.decelTicks = 0;
         this.releaseMovementKeys();
 
-        if (this.forcedFlying) {
-            const player = Player.getPlayer();
-            if (player && player.getAbilities().flying) {
-                player.getAbilities().flying = false;
-                player.sendAbilitiesUpdate();
-            }
-        }
-
-        this.forcedFlying = false;
         this.path = [];
     }
 }

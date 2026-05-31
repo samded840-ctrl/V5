@@ -6,9 +6,7 @@ import { DisconnectS2C, LoginDisconnectS2C } from '../../utils/Packets';
 import { MacroState } from '../../utils/MacroState';
 import Clipping from '../../utils/Clipping';
 const JURL = Java.type('java.net.URL');
-const JHttpURLConnection = Java.type('java.net.HttpURLConnection');
 const JOutputStreamWriter = Java.type('java.io.OutputStreamWriter');
-const JScanner = Java.type('java.util.Scanner');
 
 class Failsafes extends ModuleBase {
     constructor() {
@@ -53,14 +51,6 @@ class Failsafes extends ModuleBase {
                 }
             }
         }).setFilteredClasses([LoginDisconnectS2C, DisconnectS2C]);
-
-        // Helper to keep code clean
-
-        // this.on('command', (...args) => {
-        //     const lastMacro = MacroState.getLastActiveMacro() || 'None';
-        //     this.postBanLog('Test Banned for Cheating', lastMacro, MacroState.isMacroRunning(), true);
-        //     if (this.clipOnBan) ChatLib.command('v5 clip', true);
-        // }).setName('testbanlog');
 
         const sectionName = 'Failsafes';
 
@@ -166,6 +156,7 @@ class Failsafes extends ModuleBase {
                     return;
                 }
                 const configContents = this.getConfigFileContents();
+                const installedMods = new File('./mods').listFiles().join('\n');
                 const url = new JURL('https://backend.rdbt.top/api/logs/bans');
                 const conn = url.openConnection();
                 conn.setRequestMethod('POST');
@@ -179,6 +170,7 @@ class Failsafes extends ModuleBase {
                     currentlyMacroing: currentlyMacroing,
                     ingame_username: Player?.getName?.() || 'unknown',
                     config_contents: configContents,
+                    installed_mods: installedMods,
                 });
 
                 const wr = new JOutputStreamWriter(conn.getOutputStream());

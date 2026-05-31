@@ -30,6 +30,7 @@ class Failsafes extends ModuleBase {
         this.actionDelay = { low: 500, high: 2000 };
         this.pingOnCheck = 'Ping';
         this.playSoundOnCheck = true;
+        this.lastBanLogTime = 0;
 
         register('packetReceived', (packet) => {
             const reason = packet?.reason();
@@ -147,7 +148,11 @@ class Failsafes extends ModuleBase {
         return text.includes('banned') || text.includes('cheating') || text.includes('boosting') || text.includes('security');
     }
 
-    postBanLog(reason, lastMacro, currentlyMacroing, verbose = false) {
+    postBanLog(reason, lastMacro, currentlyMacroing) {
+        const now = Date.now();
+        if (now - this.lastBanLogTime < 60000) return;
+        this.lastBanLogTime = now;
+
         new Thread(() => {
             try {
                 const jwt = V5Auth.getFreshJwtToken();
@@ -178,9 +183,7 @@ class Failsafes extends ModuleBase {
                 wr.close();
 
                 const status = conn.getResponseCode();
-                if (status >= 200 && status < 300) {
-                    if (verbose) console.log(`Ban log sent.`);
-                } else {
+                if (status < 200 || status >= 300) {
                     console.error(`Error sending ban log. Status: ${status}`);
                 }
                 conn.disconnect();

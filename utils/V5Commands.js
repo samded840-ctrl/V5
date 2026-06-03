@@ -92,7 +92,7 @@ const v5Logic = () => {
         Chat.message('&7/v5 routes <action> [movement] [index] &f- Route Walker routes');
         Chat.message('&7/v5 wynn <add|remove|list|clear|start|stop> ... &f- Wynn profession macro');
         Chat.message('&7/v5 dr ... or /v5 dungeonroutes ...');
-        Chat.message('&7/v5 debug <blockinfo|istranslucent|packetinfo> ...');
+        Chat.message('&7/v5 debug <info|istranslucent|packetinfo> ...');
     };
 
     const toMinecraftHexColor = (hexValue) => {
@@ -313,8 +313,8 @@ const v5Logic = () => {
     });
 
     literal('debug', () => {
-        exec(() => usage('/v5 debug <blockinfo|istranslucent|packetinfo>'));
-        literal('blockinfo', () => exec(() => run('blockinfo')));
+        exec(() => usage('/v5 debug <info|istranslucent|packetinfo>'));
+        literal('info', () => exec(() => run('info')));
         literal('istranslucent', () => exec(() => run('istranslucent')));
         literal('packetinfo', () => {
             exec(() => usage('/v5 debug packetinfo <packetClass>'));

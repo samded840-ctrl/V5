@@ -331,7 +331,6 @@ class NukerClass extends ModuleBase {
 
     onDisable() {
         this.message('&cDisabled');
-        this.init();
     }
 }
 

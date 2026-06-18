@@ -16,18 +16,14 @@ class RotationConfig extends ModuleBase {
 
         this.ROTATION_SPEED = 400;
         this.rotationMode = 'Non-linear';
-        this.DAMPING_DIST = 60.0;
+        this.DAMPING_DIST = 60;
 
         this.addDirectMultiToggle(
             'Rotation Mode',
             ['Linear', 'Non-linear (recommended)', 'Instant'],
             true,
             (value) => {
-                if (value.length > 0 && typeof value[0] === 'string') {
-                    this.rotationMode = value[0];
-                } else {
-                    this.rotationMode = value.find((opt) => opt.enabled)?.name || null;
-                }
+                this.rotationMode = value?.find((opt) => opt.enabled)?.name;
             },
             '• Non-linear rotations have offsets making them more human-like\n• Linear rotations are smoother and more precise\n• Instant rotations snap to the target immediately.',
             'Non-linear (recommended)',
@@ -79,9 +75,9 @@ class RotationsTo {
 
     selectProfile(distance) {
         if (RotationModule.rotationMode === 'Linear') return 'linear';
-        if (distance < 15) return 'precise-log';
-        if (distance < 45) return 'hermite-arc';
-        if (distance < 90) return 'bezier-drift';
+        if (distance < 10) return 'precise-log';
+        if (distance < 30) return 'hermite-arc';
+        if (distance < 75) return 'bezier-drift';
         return 'sinusoidal-wobble';
     }
 
@@ -111,25 +107,6 @@ class RotationsTo {
         return {
             x: Math.cos(this.curveSeed) * strength,
             y: Math.sin(this.curveSeed) * strength,
-        };
-    }
-
-    applyRotationWithGCD(yaw, pitch) {
-        RotationGCD.applyToPlayer(yaw, this.clampPitch(pitch));
-    }
-
-    normalizeAngle(angle) {
-        return (((angle % 360) + 540) % 360) - 180;
-    }
-
-    clampPitch(pitch) {
-        return Math.max(-90, Math.min(90, pitch));
-    }
-
-    sanitizeRotation(yaw, pitch, normalizeYaw = true) {
-        return {
-            yaw: normalizeYaw ? this.normalizeAngle(yaw) : yaw,
-            pitch: this.clampPitch(pitch),
         };
     }
 
@@ -184,7 +161,7 @@ class RotationsTo {
                 return false;
             }
         } else if (this.targetVector) {
-            newTarget = this.getAnglesFromVector(this.targetVector.vector);
+            newTarget = this.getAnglesFromVector(this.targetVector);
         }
 
         if (newTarget) {
@@ -206,8 +183,8 @@ class RotationsTo {
         if (!player) return this.stopRotation();
 
         const currentRotation = RotationGCD.getCurrentRotation(player);
-        let currentYaw = currentRotation?.yaw ?? player.getYaw();
-        let currentPitch = currentRotation?.pitch ?? player.getPitch();
+        let currentYaw = currentRotation.yaw;
+        let currentPitch = currentRotation.pitch;
 
         const targetYaw = RotationGCD.aimModulo360(currentYaw, finalTarget.yaw);
         let deltaYaw = targetYaw - currentYaw;
@@ -221,12 +198,12 @@ class RotationsTo {
 
         if (distance <= effectivePrecision) {
             if (isExactVector && player) {
-                const safe = this.sanitizeRotation(targetYaw, finalTarget.pitch, false);
+                const safe = { yaw: targetYaw, pitch: RotationGCD.clampPitch(finalTarget.pitch) };
                 player.setYaw(safe.yaw);
                 player.setPitch(safe.pitch);
                 RotationGCD.syncFromPlayer(safe.yaw, safe.pitch, player);
             } else {
-                this.applyRotationWithGCD(targetYaw, finalTarget.pitch);
+                RotationGCD.applyToPlayer(targetYaw, finalTarget.pitch);
             }
 
             this.lastTime = Date.now();
@@ -237,7 +214,7 @@ class RotationsTo {
         }
 
         if (RotationModule.rotationMode === 'Instant') {
-            this.applyRotationWithGCD(targetYaw, finalTarget.pitch);
+            RotationGCD.applyToPlayer(targetYaw, finalTarget.pitch);
             if (!this.trackedEntity && !this.targetVector) {
                 return this.stopRotation();
             }
@@ -289,10 +266,10 @@ class RotationsTo {
             }
         }
 
-        nextPitch = Math.max(-90, Math.min(90, nextPitch));
+        nextPitch = RotationGCD.clampPitch(nextPitch);
 
         if (!Number.isNaN(nextYaw) && !Number.isNaN(nextPitch)) {
-            this.applyRotationWithGCD(nextYaw, nextPitch);
+            RotationGCD.applyToPlayer(nextYaw, nextPitch);
         }
     }
 
@@ -303,7 +280,7 @@ class RotationsTo {
         }
 
         if (this.isRotating && this.target) {
-            const dYaw = Math.abs(this.normalizeAngle(yaw - this.target.yaw));
+            const dYaw = Math.abs(RotationGCD.normalizeAngle(yaw - this.target.yaw));
             const dPitch = Math.abs(pitch - this.target.pitch);
             if (dYaw < 0.1 && dPitch < 0.1) {
                 this.target = { yaw, pitch };
@@ -322,11 +299,8 @@ class RotationsTo {
         this.initialDistance = 0;
 
         if (RotationModule.rotationMode === 'Instant') {
-            this.applyRotationWithGCD(yaw, pitch);
-            if (!this.trackedEntity && !this.targetVector) {
-                return this.stopRotation();
-            }
-            return;
+            RotationGCD.applyToPlayer(yaw, pitch);
+            return this.stopRotation();
         }
     }
 
@@ -339,7 +313,7 @@ class RotationsTo {
             RotationGCD.syncFromPlayer();
         }
 
-        this.targetVector = { vector: vec, shiftTarget };
+        this.targetVector = vec;
         this.trackedEntity = null;
         this.speedMultiplier = speedMultiplier;
         this.isRotating = true;
@@ -349,7 +323,7 @@ class RotationsTo {
             let shouldResetTiming = !wasRotatingToVector;
 
             if (wasRotatingToVector && this.target) {
-                const deltaYaw = Math.abs(this.normalizeAngle(initialTarget.yaw - this.target.yaw));
+                const deltaYaw = Math.abs(RotationGCD.normalizeAngle(initialTarget.yaw - this.target.yaw));
                 const deltaPitch = Math.abs(initialTarget.pitch - this.target.pitch);
                 const shift = Math.hypot(deltaYaw, deltaPitch);
 

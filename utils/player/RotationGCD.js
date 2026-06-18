@@ -30,10 +30,6 @@ class SharedRotationGCD {
         return Math.max(-90, Math.min(90, pitch));
     }
 
-    getRotationDelta(from, to) {
-        return this.angleDifference(to, from);
-    }
-
     angleDifference(a, b) {
         return this.normalizeAngle(a - b);
     }
@@ -45,7 +41,7 @@ class SharedRotationGCD {
     }
 
     applyGCD(rotation, prevRotation, gcd, min = null, max = null) {
-        const delta = this.getRotationDelta(prevRotation, rotation);
+        const delta = this.angleDifference(rotation, prevRotation);
         const roundedDelta = Math.round(delta / gcd) * gcd;
         let result = prevRotation + roundedDelta;
 
@@ -64,17 +60,21 @@ class SharedRotationGCD {
         return true;
     }
 
+    resyncIfDrifted(player, gcd) {
+        const yawDrift = Math.abs(this.angleDifference(this.lastYaw, player.getYaw()));
+        const pitchDrift = Math.abs(player.getPitch() - this.lastPitch);
+
+        if (yawDrift > gcd * 2 || pitchDrift > gcd * 2) {
+            this.lastYaw = player.getYaw();
+            this.lastPitch = player.getPitch();
+        }
+    }
+
     getCurrentRotation(player = Player.getPlayer()) {
         if (!player) return null;
 
         if (this.initialized) {
-            const gcd = this.calculateGCD();
-            const yawDrift = Math.abs(this.getRotationDelta(this.lastYaw, player.getYaw()));
-            const pitchDrift = Math.abs(player.getPitch() - this.lastPitch);
-            if (yawDrift > gcd * 2 || pitchDrift > gcd * 2) {
-                this.lastYaw = player.getYaw();
-                this.lastPitch = player.getPitch();
-            }
+            this.resyncIfDrifted(player, this.calculateGCD());
         }
 
         return {
@@ -94,15 +94,7 @@ class SharedRotationGCD {
         if (!this.initialized) {
             this.syncFromPlayer();
         } else if (now - this.lastApplyAt > this.DRIFT_RESYNC_MS) {
-            const playerYaw = player.getYaw();
-            const playerPitch = player.getPitch();
-            const yawDrift = Math.abs(this.getRotationDelta(this.lastYaw, playerYaw));
-            const pitchDrift = Math.abs(playerPitch - this.lastPitch);
-
-            if (yawDrift > gcd * 2 || pitchDrift > gcd * 2) {
-                this.lastYaw = playerYaw;
-                this.lastPitch = playerPitch;
-            }
+            this.resyncIfDrifted(player, gcd);
         }
 
         const safePitch = this.clampPitch(pitch);

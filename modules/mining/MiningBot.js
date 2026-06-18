@@ -715,7 +715,7 @@ class Bot extends ModuleBase {
                 this.handleVeinMovement();
 
                 const approachVector = this.getAimVectorForTarget(this.currentTarget);
-                if (approachVector) Rotations.rotateToVector(approachVector);
+                if (approachVector) Rotations.lookAtVector(approachVector);
                 return;
             }
 
@@ -751,7 +751,7 @@ class Bot extends ModuleBase {
 
         const targetVector = this.getAimVectorForTarget(this.currentTarget);
         if (this.currentTarget && targetVector) {
-            Rotations.rotateToVector(targetVector);
+            Rotations.lookAtVector(targetVector);
         }
     }
 
@@ -1596,7 +1596,7 @@ class Bot extends ModuleBase {
         this.lastRenderPos = null;
         this.lastAimPos = null;
         this.lastNextPos = null;
-        Rotations.stopRotation();
+        Rotations.stop();
         this.normalRender.unregister();
     }
 

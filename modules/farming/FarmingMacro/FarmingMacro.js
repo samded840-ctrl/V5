@@ -285,7 +285,7 @@ class FarmingMacro extends ModuleBase {
 
         Mouse.regrab();
         Keybind.unpressKeys();
-        Rotations.stopRotation();
+        Rotations.stop();
         Keybind.setKey('leftclick', false);
     }
 }

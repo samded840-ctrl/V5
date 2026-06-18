@@ -11,6 +11,7 @@ import { Utils } from '../../utils/Utils';
 import { Guis } from '../../utils/player/Inventory';
 import { Keybind } from '../../utils/player/Keybinding';
 import { Rotations } from '../../utils/player/Rotations';
+import { RotationGCD } from '../../utils/player/RotationGCD';
 import { PeltQOLModule } from './PeltQOL';
 import { Mouse } from '../../utils/Ungrab';
 
@@ -514,7 +515,7 @@ class PeltMacro extends ModuleBase {
     stopMovement() {
         this.stopPathing();
         Keybind.stopMovement();
-        Rotations.stopRotation();
+        Rotations.stop();
     }
 
     prepareForTravel() {
@@ -672,7 +673,7 @@ class PeltMacro extends ModuleBase {
             if (this.travelState?.sequenceToken !== token) return;
             if (!direction || !Number.isFinite(direction.yaw) || !Number.isFinite(direction.pitch)) return;
 
-            Rotations.applyRotationWithGCD(direction.yaw, direction.pitch);
+            RotationGCD.applyToPlayer(direction.yaw, direction.pitch);
 
             const yaw = Number.parseFloat(Player.getYaw());
             const pitch = Number.parseFloat(Player.getPitch());
@@ -1061,7 +1062,7 @@ class PeltMacro extends ModuleBase {
         this.mobRepositions++;
         this.mobRepositionUntil = Date.now() + MOB_REPOSITION_MS;
         this.lastMobPathAt = 0;
-        Rotations.stopRotation();
+        Rotations.stop();
         this.syncMobJumpHold(this.shouldHoldMobJump());
         if (mob) this.startMobPath(mob, mobId, distance);
     }
@@ -1084,7 +1085,7 @@ class PeltMacro extends ModuleBase {
         this.status = 'Shooting Mob';
         const aimPoint = this.getAimPoint(entity);
         Guis.setItemSlot(this.weaponSlot);
-        Rotations.rotateToEntity(entity);
+        Rotations.trackEntity(entity);
 
         if (Date.now() - this.lastShotAt < SHOOT_COOLDOWN_MS) return;
         if (!this.isAimedAt(aimPoint)) return;
@@ -1145,7 +1146,7 @@ class PeltMacro extends ModuleBase {
     }
 
     getAimPoint(entity) {
-        return Rotations.getEntityAimPoint(entity) || [entity.getX(), entity.getY() + entity.getHeight() * 0.7, entity.getZ()];
+        return Rotations.getAimPoint(entity) || [entity.getX(), entity.getY() + entity.getHeight() * 0.7, entity.getZ()];
     }
 
     isAimedAt(point) {

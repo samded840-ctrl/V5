@@ -62,7 +62,6 @@ class ForagingBot extends ModuleBase {
         this.scannedBlocksSnapshot = [];
         this.scanOrigin = null;
         this.lastClickedBlock = null;
-        this.rotationInProgress = false;
         this.STATES = {
             WAITING: 0,
             PATHFINDING: 1,
@@ -112,7 +111,6 @@ class ForagingBot extends ModuleBase {
         this.targetBlock = null;
         this.scanOrigin = null;
         this.lastClickedBlock = null;
-        this.rotationInProgress = false;
         this.pathInProgress = false;
     }
 
@@ -160,17 +158,16 @@ class ForagingBot extends ModuleBase {
     }
 
     handleThrowing() {
-        if (Rotations.isRotating || this.rotationInProgress) return;
+        if (Rotations.active || this.targetBlock) return;
 
         const targetBlock = this.findLowestCostBlock();
         if (!targetBlock) return;
 
         this.targetBlock = targetBlock;
-        this.rotationInProgress = true;
 
         const aimPoint = targetBlock.hitPoint || [targetBlock.x + 0.5, targetBlock.y + 0.7, targetBlock.z + 0.5];
-        Rotations.rotateToVector(aimPoint, 2);
-        Rotations.onEndRotation(() => {
+        Rotations.lookAtVector(aimPoint, { speedMultiplier: 2 });
+        Rotations.onComplete(() => {
             Keybind.rightClick();
             this.lastClickedBlock = { x: targetBlock.x, y: targetBlock.y, z: targetBlock.z };
             this.connectedBlocks = this.connectedBlocks.filter(
@@ -179,9 +176,8 @@ class ForagingBot extends ModuleBase {
                     Math.abs(block.y - targetBlock.y) > IGNORE_RADIUS ||
                     Math.abs(block.z - targetBlock.z) > IGNORE_RADIUS
             );
-            this.targetBlock = null;
             ScheduleTask(17, () => {
-                this.rotationInProgress = false;
+                this.targetBlock = null;
             });
         });
     }
@@ -346,7 +342,7 @@ class ForagingBot extends ModuleBase {
 
     onDisable() {
         this.message('&cDisabled');
-        Rotations.stopRotation();
+        Rotations.stop();
         Pathfinder.resetPath();
         this.resetState(this.STATES.WAITING, this.pointIndex);
     }

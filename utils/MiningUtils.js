@@ -731,11 +731,11 @@ class RefuelService {
             case this.STATES.ROTATE_TO_MECHANIC:
                 const mechanicHead = [DRILL_MECHANIC_LOCATION[0] + 0.5, DRILL_MECHANIC_LOCATION[1] + 2.2, DRILL_MECHANIC_LOCATION[2] + 0.5];
 
-                if (!this.npcRotationPending && !Rotations.isRotating) {
+                if (!this.npcRotationPending && !Rotations.active) {
                     this.npcRotationPending = true;
                     const token = ++this.npcRotationToken;
-                    Rotations.rotateToVector(mechanicHead);
-                    Rotations.onEndRotation(() => {
+                    Rotations.lookAtVector(mechanicHead);
+                    Rotations.onComplete(() => {
                         if (!this.npcRotationPending || this.npcRotationToken !== token) return;
                         this.npcRotationPending = false;
                         Keybind.rightClick();

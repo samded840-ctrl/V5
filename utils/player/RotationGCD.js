@@ -7,17 +7,8 @@ class SharedRotationGCD {
         this.DRIFT_RESYNC_MS = 120;
     }
 
-    getMouseSensitivity() {
-        try {
-            return Client.getMinecraft().options.mouseSensitivity.value;
-        } catch (e) {
-            return 0.5;
-        }
-    }
-
     calculateGCD() {
-        const sensitivity = this.getMouseSensitivity();
-        if (!Number.isFinite(sensitivity)) return 0.15;
+        const sensitivity = Client.getMinecraft().options.mouseSensitivity.value;
         const f = sensitivity * 0.6 + 0.2;
         return f * f * f * 1.2;
     }
@@ -40,8 +31,8 @@ class SharedRotationGCD {
         return currentYaw + this.angleDifference(targetYaw, currentYaw);
     }
 
-    applyGCD(rotation, prevRotation, gcd, min = null, max = null) {
-        const delta = this.angleDifference(rotation, prevRotation);
+    applyGCD(delta, prevRotation, gcd, min = null, max = null) {
+        if (!Number.isFinite(delta) || !Number.isFinite(gcd) || gcd <= 0) return prevRotation;
         const roundedDelta = Math.round(delta / gcd) * gcd;
         let result = prevRotation + roundedDelta;
 
@@ -97,10 +88,8 @@ class SharedRotationGCD {
             this.resyncIfDrifted(player, gcd);
         }
 
-        const safePitch = this.clampPitch(pitch);
-        const wrappedYaw = this.aimModulo360(this.lastYaw, yaw);
-        const gcdYaw = this.applyGCD(wrappedYaw, this.lastYaw, gcd);
-        const gcdPitch = this.applyGCD(safePitch, this.lastPitch, gcd, -90, 90);
+        const gcdYaw = this.applyGCD(this.angleDifference(yaw, this.lastYaw), this.lastYaw, gcd);
+        const gcdPitch = this.applyGCD(this.clampPitch(pitch) - this.clampPitch(this.lastPitch), this.clampPitch(this.lastPitch), gcd, -90, 90);
 
         this.lastYaw = gcdYaw;
         this.lastPitch = gcdPitch;

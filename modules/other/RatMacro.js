@@ -337,7 +337,7 @@ class RatMacro extends ModuleBase {
         this.pendingAttackAtGoal = true;
         this.setState(STATES.ENGAGING, `preparing shot for ${this.formatRatRef()}`);
         Keybind.stopMovement();
-        Rotations.stopRotation();
+        Rotations.stop();
         Guis.setItemSlot(this.weaponSlot);
         this.debug(`queued attack on rat &e${this.formatRatRef()}&f using slot &e${this.weaponSlot + 1}`);
 
@@ -353,7 +353,7 @@ class RatMacro extends ModuleBase {
                 return;
             }
 
-            const aimPoint = Rotations.getEntityAimPoint(attackTarget);
+            const aimPoint = Rotations.getAimPoint(attackTarget);
             if (!aimPoint) {
                 this.pendingAttackAtGoal = false;
                 this.debug(`failed to resolve aim point for rat &e${this.formatRatRef()}&f`);
@@ -361,8 +361,8 @@ class RatMacro extends ModuleBase {
                 return;
             }
 
-            Rotations.rotateToVector(aimPoint);
-            Rotations.onEndRotation(() => {
+            Rotations.lookAtVector(aimPoint);
+            Rotations.onComplete(() => {
                 if (!this.enabled || attackToken !== this.pendingAttackToken || !this.pendingAttackAtGoal) return;
 
                 const yaw = Number.parseFloat(Player.getYaw());
@@ -850,7 +850,7 @@ class RatMacro extends ModuleBase {
         this.pendingAttackAtGoal = false;
         this.pendingAttackToken++;
         Keybind.stopMovement();
-        Rotations.stopRotation();
+        Rotations.stop();
         this.setState(STATES.WAITING, 'cleared active target');
     }
 
@@ -1055,7 +1055,7 @@ class RatMacro extends ModuleBase {
         this.debug('in range of VIP NPC, rotating to interact');
         this.setState('Facing VIP NPC', 'rotating to VIP selector NPC');
         const aimPoint = { x: VIP_NPC_POSITION.x, y: VIP_NPC_POSITION.y + 1.5, z: VIP_NPC_POSITION.z };
-        Rotations.rotateToVector(aimPoint);
+        Rotations.lookAtVector(aimPoint);
         if (Client.isInGui()) return;
         this.debug('right clicking VIP NPC to open selector');
         Keybind.rightClick();
@@ -1148,7 +1148,7 @@ class RatMacro extends ModuleBase {
         this.vipRotationToken++;
         this.cancelPathing();
         Keybind.stopMovement();
-        Rotations.stopRotation();
+        Rotations.stop();
         if (this.swapStage === SWAP_STAGES.NONE) {
             this.debug('world unloaded, clearing Rat Macro runtime state');
             this.setState(STATES.WAITING, 'world unload reset');
@@ -1202,7 +1202,7 @@ class RatMacro extends ModuleBase {
         this.vipRotationToken++;
         Keybind.stopMovement();
         Keybind.unpressKeys();
-        Rotations.stopRotation();
+        Rotations.stop();
         this.debug('disabled, cleared targeting/pathing state');
         this.setState(STATES.WAITING, 'module disabled');
         Mouse.regrab();

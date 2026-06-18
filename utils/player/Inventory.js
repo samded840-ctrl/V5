@@ -185,7 +185,7 @@ export const Guis = {
             Keybind.stopMovement();
             Keybind.setKey('shift', false);
             Keybind.setKey('leftclick', false);
-            Rotations.stopRotation();
+            Rotations.stop();
         }
     },
 

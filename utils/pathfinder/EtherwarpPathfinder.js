@@ -3,7 +3,7 @@ import { MCHand, PathManager, Vec3d } from '../Constants';
 import { CommonPingS2C, PlayerInteractItemC2S } from '../Packets';
 import { Guis } from '../player/Inventory';
 import { Keybind } from '../player/Keybinding';
-import { Rotations } from '../player/Rotations';
+import { RotationGCD } from '../player/RotationGCD';
 import { ServerInfo } from '../player/ServerInfo';
 import Render from '../render/Render';
 import { ScheduleTask } from '../ScheduleTask';
@@ -406,7 +406,7 @@ class EtherwarpPathHandler {
         }
         if (!this.ensureEtherwarpHeld(token, () => this.executeHop(token, index))) return;
 
-        Rotations.applyRotationWithGCD(angles.yaw, angles.pitch);
+        RotationGCD.applyToPlayer(angles.yaw, angles.pitch);
         this.sendEtherwarpClick();
         if (index >= this.path.length - 1) {
             this.startAwaitingFinalArrival(token);

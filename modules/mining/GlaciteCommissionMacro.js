@@ -304,11 +304,11 @@ class GlaciteCommissionMacro extends ModuleBase {
             if (!this.ensureDrillEquippedForClaim()) return;
 
             const adjustedTarget = [EMISSARY_LOCATION[0] + 0.5, EMISSARY_LOCATION[1] + 2.2, EMISSARY_LOCATION[2] + 0.5];
-            if (!this.npcRotationPending && !Rotations.isRotating) {
+            if (!this.npcRotationPending && !Rotations.active) {
                 this.npcRotationPending = true;
                 const token = ++this.npcRotationToken;
-                Rotations.rotateToVector(adjustedTarget);
-                Rotations.onEndRotation(() => {
+                Rotations.lookAtVector(adjustedTarget);
+                Rotations.onComplete(() => {
                     if (Pathfinder.isPathing()) return;
                     if (!this.npcRotationPending || this.npcRotationToken !== token) return;
                     this.npcRotationPending = false;
@@ -556,11 +556,11 @@ class GlaciteCommissionMacro extends ModuleBase {
     }
 
     cancelNpcRotation() {
-        if (!this.npcRotationPending && !Rotations.isRotating) return;
+        if (!this.npcRotationPending && !Rotations.active) return;
 
         this.npcRotationPending = false;
         this.npcRotationToken++;
-        if (Rotations.isRotating) Rotations.stopRotation();
+        if (Rotations.active) Rotations.stop();
     }
 
     getOreDisplay() {

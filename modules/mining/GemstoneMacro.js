@@ -215,8 +215,8 @@ class GemstoneMacro extends ModuleBase {
                         const player = Player.getPlayer();
                         if (!player?.isSneaking()) return;
 
-                        Rotations.rotateToVector(this.closestPoint, 1);
-                        Rotations.onEndRotation(() => {
+                        Rotations.lookAtVector(this.closestPoint, { speedMultiplier: 1 });
+                        Rotations.onComplete(() => {
                             if (!this.enabled) return;
                             ScheduleTask(this.FASTAOTV ? 2 : 5, () => {
                                 this.rightClickEtherWarp(this.closestPoint);
@@ -457,7 +457,7 @@ class GemstoneMacro extends ModuleBase {
 
     onDisable() {
         RouteState.clearRoute();
-        Rotations.stopRotation();
+        Rotations.stop();
         MiningBot.toggle(false, true);
         MiningBot.foundLocations = [];
         Keybind.unpressKeys();

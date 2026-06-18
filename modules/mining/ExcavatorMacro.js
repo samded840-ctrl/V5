@@ -93,8 +93,8 @@ class ExcavatorMacro extends ModuleBase {
                         Keybind.rightClick();
                         this.state = this.STATES.SETUP;
                     } else {
-                        if (Rotations.isRotating) return;
-                        Rotations.rotateToVector([19, 120 + 1, 227]);
+                        if (Rotations.active) return;
+                        Rotations.lookAtVector([19, 120 + 1, 227]);
                     }
 
                     break;
@@ -192,7 +192,7 @@ class ExcavatorMacro extends ModuleBase {
         if (Utils.area() !== 'Dwarven Mines') {
             if (Player.getContainer()) Guis.closeInv();
             if (Pathfinder.isPathing()) Pathfinder.resetPath();
-            Rotations.stopRotation();
+            Rotations.stop();
 
             if (this.warpCooldownTicks > 0) {
                 this.warpCooldownTicks--;
@@ -210,7 +210,7 @@ class ExcavatorMacro extends ModuleBase {
 
         if (distance > 3) {
             if (Player.getContainer()) Guis.closeInv();
-            Rotations.stopRotation();
+            Rotations.stop();
 
             if (!Pathfinder.isPathing()) {
                 Pathfinder.resetPath();
@@ -328,7 +328,7 @@ class ExcavatorMacro extends ModuleBase {
         this.refillDelayTicks = 0;
         this.warpCooldownTicks = 0;
         Pathfinder.resetPath();
-        Rotations.stopRotation();
+        Rotations.stop();
     }
 }
 

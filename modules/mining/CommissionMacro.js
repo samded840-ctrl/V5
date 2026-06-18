@@ -644,11 +644,11 @@ class CommissionMacro extends ModuleBase {
             if (!this.ensureDrillEquippedForEmissaryClaim()) return;
 
             const adjustedTarget = [closest[0] + 0.5, closest[1] + 2.2, closest[2] + 0.5];
-            if (!this.npcRotationPending && !Rotations.isRotating && !Pathfinder.isPathing()) {
+            if (!this.npcRotationPending && !Rotations.active) {
                 this.npcRotationPending = true;
                 const token = ++this.npcRotationToken;
-                Rotations.rotateToVector(adjustedTarget);
-                Rotations.onEndRotation(() => {
+                Rotations.lookAtVector(adjustedTarget);
+                Rotations.onComplete(() => {
                     if (Pathfinder.isPathing()) return;
                     if (!this.npcRotationPending || this.npcRotationToken !== token) return;
                     this.npcRotationPending = false;
@@ -793,8 +793,8 @@ class CommissionMacro extends ModuleBase {
 
         this.npcRotationPending = false;
         this.npcRotationToken++;
-        if (Rotations.isRotating) {
-            Rotations.stopRotation();
+        if (Rotations.active) {
+            Rotations.stop();
         }
     }
 

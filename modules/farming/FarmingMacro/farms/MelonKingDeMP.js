@@ -54,8 +54,8 @@ export default class MelonKingDeMP extends FarmHandler {
                 }
 
                 macro.yaw = snappedYaw;
-                Rotations.rotateToAngles(macro.yaw, macro.pitch);
-                Rotations.onEndRotation(() => (macro.state = macro.STATES.DECIDEITEM));
+                Rotations.lookAtAngles(macro.yaw, macro.pitch);
+                Rotations.onComplete(() => (macro.state = macro.STATES.DECIDEITEM));
                 break;
             case states.DECIDEITEM:
                 let requiredToolName = null;

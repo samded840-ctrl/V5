@@ -180,8 +180,8 @@ class ScathaMacro extends ModuleBase {
 
             Guis.setItemSlot(this.items.aspect);
 
-            Rotations.rotateToAngles(Player.getYaw(), 90);
-            Rotations.onEndRotation(() => {
+            Rotations.lookAtAngles(Player.getYaw(), 90);
+            Rotations.onComplete(() => {
                 Keybind.rightClick();
                 this.handleAOTV.usedAOTV = true;
             });
@@ -222,8 +222,8 @@ class ScathaMacro extends ModuleBase {
 
         let angle = distEast < distWest ? -90 : 90;
 
-        Rotations.rotateToAngles(angle, 35);
-        Rotations.onEndRotation(() => (this.state = this.STATES.MINING));
+        Rotations.lookAtAngles(angle, 35);
+        Rotations.onComplete(() => (this.state = this.STATES.MINING));
 
         this.state = this.STATES.WAITING;
     }
@@ -235,7 +235,7 @@ class ScathaMacro extends ModuleBase {
 
         if (this.isInPane()) currentPitch = 60;
 
-        Rotations.rotateToAngles(Player.getYaw(), currentPitch);
+        Rotations.lookAtAngles(Player.getYaw(), currentPitch);
 
         if (looking instanceof Block) {
             let blockId = looking?.type?.getRegistryName();

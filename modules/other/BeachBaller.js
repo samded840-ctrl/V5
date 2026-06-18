@@ -360,7 +360,6 @@ class Beachballer extends ModuleBase {
             return;
         }
 
-        //Rotations.rotateToVector([this.startPos[0], this.startPos[1] + 2, this.startPos[2]], 0.5, false);
         Keybind.setKeysForStraightLineCoords(this.startPos[0], this.startPos[1], this.startPos[2]);
     }
 

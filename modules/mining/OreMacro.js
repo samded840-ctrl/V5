@@ -249,7 +249,7 @@ class OreMacro extends ModuleBase {
                         let nextPoint = this.route[(this.pointData.index + 1) % this.route.length];
                         if (nextPoint) {
                             let nextPointVec = new Vec3d(nextPoint?.x + 0.5, nextPoint?.y, nextPoint?.z + 0.5);
-                            if (nextPointVec) Rotations.rotateToVector(nextPointVec);
+                            if (nextPointVec) Rotations.lookAtVector(nextPointVec);
                         }
                         this.state = this.STATES.MINING;
                         return;
@@ -268,8 +268,8 @@ class OreMacro extends ModuleBase {
                         const player = Player.getPlayer();
                         if (!player?.isSneaking()) return;
 
-                        Rotations.rotateToVector(this.pointData.closest, 1);
-                        Rotations.onEndRotation(() => {
+                        Rotations.lookAtVector(this.pointData.closest, { speedMultiplier: 1 });
+                        Rotations.onComplete(() => {
                             if (!this.enabled) return;
                             ScheduleTask(this.FASTAOTV ? 2 : 5, () => {
                                 try {
@@ -641,7 +641,7 @@ class OreMacro extends ModuleBase {
 
     onDisable() {
         RouteState.clearRoute();
-        Rotations.stopRotation();
+        Rotations.stop();
 
         this.pointData = {
             point: null,

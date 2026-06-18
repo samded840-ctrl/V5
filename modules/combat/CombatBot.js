@@ -505,7 +505,7 @@ class Combat extends ModuleBase {
 
     startRotationToTarget() {
         if (!this.target) return;
-        Rotations.rotateToEntity(this.target);
+        Rotations.trackEntity(this.target);
     }
 
     isAimingAtTarget() {
@@ -548,7 +548,7 @@ class Combat extends ModuleBase {
             case COMBAT_STATE.IDLE:
             case COMBAT_STATE.PATHING:
                 Keybind.stopMovement();
-                Rotations.stopRotation();
+                Rotations.stop();
                 break;
             case COMBAT_STATE.APPROACHING:
                 Pathfinder.resetPath();

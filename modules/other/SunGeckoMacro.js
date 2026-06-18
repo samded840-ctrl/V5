@@ -102,7 +102,6 @@ class SunGecko extends ModuleBase {
         this.bindToggleKey();
         this.state = States.WAITING;
         this.pathRequestActive = false;
-        this.rotationPending = false;
         this.rotationToken = 0;
         this.actionCooldownUntil = 0;
         this.terracottaClickCooldownUntil = 0;
@@ -255,21 +254,18 @@ class SunGecko extends ModuleBase {
     }
 
     rotateAndInteract(target, clickType, nextDelay = 10) {
-        if (this.rotationPending || Rotations.isRotating || Date.now() < this.actionCooldownUntil) return;
+        if (Rotations.active || Date.now() < this.actionCooldownUntil) return;
 
         const entity = this.findNearbyEntity(target.name, target.x, target.y, target.z);
-        const aimPoint = entity ? Rotations.getEntityAimPoint(entity) : { x: target.x, y: target.y + 1.0, z: target.z };
+        const aimPoint = entity ? Rotations.getAimPoint(entity) : { x: target.x, y: target.y + 1.0, z: target.z };
         if (!aimPoint) return;
 
-        this.rotationPending = true;
         const token = ++this.rotationToken;
 
-        Rotations.rotateToVector(aimPoint);
-        Rotations.onEndRotation(() => {
+        Rotations.lookAtVector(aimPoint);
+        Rotations.onComplete(() => {
             if (!this.enabled || this.state !== States.DETERMIN) return;
-            if (!this.rotationPending || this.rotationToken !== token) return;
-
-            this.rotationPending = false;
+            if (this.rotationToken !== token) return;
 
             if (clickType === 'left') Keybind.leftClick();
             else Keybind.rightClick();
@@ -344,7 +340,7 @@ class SunGecko extends ModuleBase {
         if (distanceToLadder > 0.25) {
             Keybind.setKey('shift', true);
             Keybind.setKey('sprint', false);
-            Rotations.rotateToVector(RIFT_SPAWN_LADDER_AIM_POINT);
+            Rotations.lookAtVector(RIFT_SPAWN_LADDER_AIM_POINT);
             Keybind.setKeysForStraightLineCoords(RIFT_SPAWN_LADDER_WAYPOINT.x, RIFT_SPAWN_LADDER_WAYPOINT.y, RIFT_SPAWN_LADDER_WAYPOINT.z, false, true);
             return;
         }
@@ -352,13 +348,13 @@ class SunGecko extends ModuleBase {
         Keybind.stopMovement();
         Keybind.setKey('shift', false);
         Keybind.setKey('sprint', false);
-        if (Rotations.isRotating) Rotations.stopRotation();
+        if (Rotations.active) Rotations.stop();
     }
 
     handleRiftSpawnExit() {
         if (Pathfinder.isPathing()) Pathfinder.resetPath();
         this.pathRequestActive = false;
-        if (Rotations.isRotating) Rotations.stopRotation();
+        if (Rotations.active) Rotations.stop();
 
         const distanceToExit = Math.hypot(
             Player.getX() - RIFT_SPAWN_EXIT_WAYPOINT.x,
@@ -448,7 +444,6 @@ class SunGecko extends ModuleBase {
 
     onEnable() {
         this.pathRequestActive = false;
-        this.rotationPending = false;
         this.rotationToken = 0;
         this.actionCooldownUntil = 0;
         this.terracottaClickCooldownUntil = 0;
@@ -459,10 +454,9 @@ class SunGecko extends ModuleBase {
 
     onDisable() {
         this.pathRequestActive = false;
-        this.rotationPending = false;
         Keybind.unpressKeys();
         Pathfinder.resetPath();
-        Rotations.stopRotation();
+        Rotations.stop();
         this.terracottaClickCooldownUntil = 0;
         CombatBot.clearExternalTargets();
         if (CombatBot.enabled) CombatBot.toggle(false, true);

@@ -167,7 +167,7 @@ class RouteWalkerer extends ModuleBase {
 
                     let angle = MathUtils.calculateAbsoluteAngles(new Vec3d(this.point.x + 0.5, this.point.y + 2, this.point.z + 0.5));
 
-                    Rotations.rotateToAngles(angle.yaw, this.LOCKPITCH ? this.PITCH : player.getPitch(), 1.0, false);
+                    Rotations.lookAtAngles(angle.yaw, this.LOCKPITCH ? this.PITCH : player.getPitch(), { speedMultiplier: 1.0 });
 
                     if (currentDistance < 3) {
                         this.etherwarpReady = false;
@@ -202,9 +202,9 @@ class RouteWalkerer extends ModuleBase {
 
                     if (!this.etherwarpReady) {
                         if (point) {
-                            Rotations.rotateToVector([point[0], point[1], point[2]], 0.5, false);
+                            Rotations.lookAtVector([point[0], point[1], point[2]], { speedMultiplier: 0.5 });
 
-                            Rotations.onEndRotation(() => {
+                            Rotations.onComplete(() => {
                                 ScheduleTask(7, () => {
                                     Keybind.rightClick();
                                 });
@@ -365,7 +365,7 @@ class RouteWalkerer extends ModuleBase {
         this.message('&cDisabled');
         Keybind.unpressKeys();
         Keybind.setKey('leftclick', false);
-        Rotations.stopRotation();
+        Rotations.stop();
         Mouse.regrab();
         this.foundpoint = false;
         this.currentIndex = 0;

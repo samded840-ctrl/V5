@@ -66,8 +66,6 @@ class StridersurferMacro extends ModuleBase {
         );
 
         this.stridersurferTarget = null;
-        this.waitingForStriderSwing = false;
-        this.waitingForRotationReset = false;
         this.previousYaw = null;
         this.previousPitch = null;
         this.lastStriderCount = null;
@@ -226,7 +224,7 @@ class StridersurferMacro extends ModuleBase {
                     return;
                 }
 
-                const aimPoint = Rotations.getEntityAimPoint(this.stridersurferTarget);
+                const aimPoint = Rotations.getAimPoint(this.stridersurferTarget);
                 if (!aimPoint) {
                     this.resumeLoopAfterStrider();
                     return;
@@ -234,31 +232,23 @@ class StridersurferMacro extends ModuleBase {
 
                 aimPoint.y = aimPoint.y - 1.3;
 
-                this.waitingForStriderSwing = true;
-                Rotations.rotateToVector(aimPoint);
-                Rotations.onEndRotation(() => {
+                Rotations.lookAtVector(aimPoint);
+                Rotations.onComplete(() => {
                     Keybind.leftClick();
-                    this.waitingForStriderSwing = false;
                 });
                 this.transitionTo(STEPS.RESTORE_ROTATION);
                 break;
             case STEPS.RESTORE_ROTATION:
-                if (this.waitingForStriderSwing || Rotations.isRotating) return;
+                if (Rotations.active) return;
 
-                this.waitingForRotationReset = true;
                 if (this.previousYaw !== null && this.previousPitch !== null) {
-                    Rotations.rotateToAngles(this.previousYaw, this.previousPitch);
-                    Rotations.onEndRotation(() => {
-                        this.waitingForRotationReset = false;
-                    });
-                } else {
-                    this.waitingForRotationReset = false;
+                    Rotations.lookAtAngles(this.previousYaw, this.previousPitch);
                 }
 
                 this.transitionTo(STEPS.RESUME_LOOP);
                 break;
             case STEPS.RESUME_LOOP:
-                if (this.waitingForRotationReset || Rotations.isRotating) break;
+                if (Rotations.active) break;
                 this.resumeLoopAfterStrider();
                 break;
         }
@@ -288,8 +278,6 @@ class StridersurferMacro extends ModuleBase {
 
     clearStriderState() {
         this.stridersurferTarget = null;
-        this.waitingForStriderSwing = false;
-        this.waitingForRotationReset = false;
         this.previousYaw = null;
         this.previousPitch = null;
     }

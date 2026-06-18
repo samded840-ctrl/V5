@@ -164,7 +164,7 @@ class WynnProfessionMacro extends ModuleBase {
         this.lastRepairActionAt = 0;
         if (Pathfinder.isPathing()) Pathfinder.resetPath();
         Keybind.unpressKeys();
-        Rotations.stopRotation();
+        Rotations.stop();
     }
 
     onTick() {
@@ -318,8 +318,8 @@ class WynnProfessionMacro extends ModuleBase {
         this.state = STATES.ROTATING;
         Keybind.unpressKeys();
 
-        Rotations.rotateToVector(new Vec3d(point.x, point.y + 1.62, point.z), false, 1.0);
-        Rotations.onEndRotation(() => {
+        Rotations.lookAtVector(new Vec3d(point.x, point.y + 1.62, point.z), { speedMultiplier: 1.0 });
+        Rotations.onComplete(() => {
             if (!this.enabled) return;
 
             if (point.click === 'RIGHT') Keybind.rightClick();
@@ -352,7 +352,7 @@ class WynnProfessionMacro extends ModuleBase {
 
         if (Pathfinder.isPathing()) Pathfinder.resetPath();
         Keybind.unpressKeys();
-        Rotations.stopRotation();
+        Rotations.stop();
 
         Pathfinder.findPath(this.buildBlacksmithPathGoals(), (success) => {
             if (!success) {
@@ -373,9 +373,9 @@ class WynnProfessionMacro extends ModuleBase {
 
         const target = this.getClosestBlacksmith();
         const aimPoint = new Vec3d(target.x + 0.5, target.y + 2.62, target.z + 0.5);
-        Rotations.rotateToVector(aimPoint, false, 1.0);
+        Rotations.lookAtVector(aimPoint, { speedMultiplier: 1.0 });
 
-        Rotations.onEndRotation(() => {
+        Rotations.onComplete(() => {
             if (!this.enabled) return;
 
             Keybind.rightClick();

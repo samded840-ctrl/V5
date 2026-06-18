@@ -60,8 +60,8 @@ export default class CaneSunflowerRose extends FarmHandler {
 
                 macro.yaw = finalSnapYaw;
 
-                Rotations.rotateToAngles(macro.yaw, macro.pitch);
-                Rotations.onEndRotation(() => (macro.state = macro.STATES.DECIDEITEM));
+                Rotations.lookAtAngles(macro.yaw, macro.pitch);
+                Rotations.onComplete(() => (macro.state = macro.STATES.DECIDEITEM));
                 break;
             case states.DECIDEITEM:
                 let requiredToolName = null;

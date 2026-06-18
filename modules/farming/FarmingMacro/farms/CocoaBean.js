@@ -43,8 +43,8 @@ export default class CocoaBean extends FarmHandler {
 
                 macro.yaw = closestYaw;
                 this.strafeKey = macro.yaw === 180 || macro.yaw === 90 ? 'd' : 'a';
-                Rotations.rotateToAngles(macro.yaw, macro.pitch);
-                Rotations.onEndRotation(() => (macro.state = states.DECIDEITEM));
+                Rotations.lookAtAngles(macro.yaw, macro.pitch);
+                Rotations.onComplete(() => (macro.state = states.DECIDEITEM));
                 break;
             case states.DECIDEITEM:
                 let block = this.getRelativeBlock(0, 2, 1);

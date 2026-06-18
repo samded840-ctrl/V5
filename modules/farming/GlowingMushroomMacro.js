@@ -105,7 +105,7 @@ class GlowingMushroomMacro extends ModuleBase {
         this.status = 'Disabled';
         this.cancelCurrentPathing();
         this.harvestRequestActive = false;
-        Rotations.stopRotation();
+        Rotations.stop();
         Keybind.stopMovement();
         this.restoreEspState();
         this.message('&cDisabled');
@@ -153,7 +153,7 @@ class GlowingMushroomMacro extends ModuleBase {
             }
         }
 
-        if (this.harvestRequestActive || Rotations.isRotating) {
+        if (this.harvestRequestActive || Rotations.active) {
             this.status = 'Harvesting';
             return;
         }
@@ -367,8 +367,8 @@ class GlowingMushroomMacro extends ModuleBase {
             return;
         }
 
-        Rotations.rotateToVector(point);
-        Rotations.onEndRotation(() => {
+        Rotations.lookAtVector(point);
+        Rotations.onComplete(() => {
             if (!this.enabled || token !== this.loopToken) return;
 
             const refreshedEye = this.getPlayerEye();

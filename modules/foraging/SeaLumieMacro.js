@@ -154,7 +154,7 @@ class SeaLumie extends ModuleBase {
                     }
                     break;
 
-                /* Rotations.rotateTo([
+                /* Rotations.lookAtVector([
             this.closestPickle.x,
             this.closestPickle.y,
             this.closestPickle.z,

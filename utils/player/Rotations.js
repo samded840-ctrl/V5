@@ -47,83 +47,82 @@ class RotationConfig extends ModuleBase {
 const RotationModule = new RotationConfig();
 export default RotationModule;
 
-class RotationsTo {
+const DEFAULT_PRECISION = 0.1;
+const ENTITY_PRECISION = 0.5;
+const TARGET_SHIFT_RESET_DEGREES = 5;
+
+class RotationController {
     constructor() {
-        this.target = null;
-        this.targetVector = null;
-        this.trackedEntity = null;
-        this.precision = 0.2;
-        this.isRotating = false;
+        this.request = null;
+        this.targetAngles = null;
         this.lastTime = 0;
-        this.actions = [];
         this.startTime = 0;
         this.initialDistance = 0;
         this.curveSeed = 0;
-        this.motionProfile = 'linear';
-        this.speedMultiplier = 1.0;
+        this.callbacks = [];
 
         v5Command('rotateTo', (yaw, pitch) => {
-            this.rotateToAngles(Number.parseFloat(yaw), Number.parseFloat(pitch));
+            this.lookAtAngles(yaw, pitch);
         });
 
         v5Command('stopRotation', () => {
-            this.stopRotation();
+            this.stop();
         });
 
-        register('renderWorld', () => this.updateRotation());
+        register('renderWorld', () => this.update());
     }
 
-    selectProfile(distance) {
-        if (RotationModule.rotationMode === 'Linear') return 'linear';
-        if (distance < 10) return 'precise-log';
-        if (distance < 30) return 'hermite-arc';
-        if (distance < 75) return 'bezier-drift';
-        return 'sinusoidal-wobble';
+    get active() {
+        return this.request !== null;
     }
 
-    getMathEquationOffset(progress) {
-        if (RotationModule.rotationMode === 'Linear' || RotationModule.rotationMode === 'Instant') return { x: 0, y: 0 };
+    get currentVector() {
+        return this.request?.type === 'vector' ? this.request.value : null;
+    }
 
-        let curveFactor = 0;
-        const safeProgress = Math.max(0, Math.min(1, progress));
+    lookAtAngles(yaw, pitch, options = {}) {
+        if (!Number.isFinite(yaw) || !Number.isFinite(pitch)) return false;
+        return this.start({ type: 'angles', value: { yaw, pitch: RotationGCD.clampPitch(pitch) } }, options);
+    }
 
-        switch (this.motionProfile) {
-            case 'precise-log':
-                curveFactor = Math.sin(Math.sqrt(safeProgress) * Math.PI) * 0.8;
-                break;
-            case 'hermite-arc':
-                curveFactor = Math.pow(safeProgress, 0.8) * Math.pow(1 - safeProgress, 1.2) * 3.5;
-                break;
-            case 'bezier-drift':
-                curveFactor = Math.pow(safeProgress, 2) * (1 - safeProgress) * 6;
-                break;
-            case 'sinusoidal-wobble':
-                curveFactor = Math.sin(safeProgress * safeProgress * Math.PI) * 1.2;
-                break;
+    lookAtVector(vector, options = {}) {
+        const vec = Utils.convertToVector(vector);
+        if (!vec) return false;
+        return this.start({ type: 'vector', value: vec }, options);
+    }
+
+    trackEntity(entity, options = {}) {
+        if (!this.isEntityUsable(entity)) return false;
+        return this.start({ type: 'entity', value: entity }, options);
+    }
+
+    onComplete(callback, name = null) {
+        if (typeof callback === 'function') {
+            this.callbacks.push({ callback, name });
         }
-
-        let strength = this.initialDistance * 0.25 * curveFactor * (1 - safeProgress);
-
-        return {
-            x: Math.cos(this.curveSeed) * strength,
-            y: Math.sin(this.curveSeed) * strength,
-        };
     }
 
-    getEntityAimPoint(entity) {
-        try {
-            let mcEntity = entity.toMC ? entity.toMC() : entity;
-            let box = mcEntity.getBoundingBox();
+    stop() {
+        this.clearRequest();
+        this.callbacks = [];
+        RotationGCD.syncFromPlayer();
+    }
 
+    getAimPoint(entity) {
+        try {
+            const mcEntity = entity?.toMC ? entity.toMC() : entity;
+            if (!mcEntity) return null;
+
+            const box = mcEntity.getBoundingBox?.();
             if (box) {
                 const height = box.maxY - box.minY;
-                const centerX = (box.minX + box.maxX) / 2;
-                const centerZ = (box.minZ + box.maxZ) / 2;
-
                 const heightMultiplier = height >= 2.5 ? 0.5 : 0.85;
-                const aimY = box.minY + height * heightMultiplier;
 
-                return { x: centerX, y: aimY, z: centerZ };
+                return {
+                    x: (box.minX + box.maxX) / 2,
+                    y: box.minY + height * heightMultiplier,
+                    z: (box.minZ + box.maxZ) / 2,
+                };
             }
 
             if (typeof mcEntity.getX === 'function') {
@@ -140,94 +139,42 @@ class RotationsTo {
         return null;
     }
 
-    updateTargetFromSource() {
-        let newTarget = null;
-
-        if (this.trackedEntity) {
-            try {
-                const mcEntity = this.trackedEntity.toMC ? this.trackedEntity.toMC() : this.trackedEntity;
-                if (mcEntity.isDead()) {
-                    this.stopRotation();
-                    return false;
-                }
-
-                const aimPoint = this.getEntityAimPoint(this.trackedEntity);
-                if (aimPoint) {
-                    newTarget = this.getAnglesFromVector(aimPoint);
-                }
-            } catch (e) {
-                console.error('V5 Caught error' + e + e.stack);
-                this.stopRotation();
-                return false;
-            }
-        } else if (this.targetVector) {
-            newTarget = this.getAnglesFromVector(this.targetVector);
-        }
-
-        if (newTarget) {
-            this.target = newTarget;
-        }
-
-        return true;
-    }
-
-    updateRotation() {
-        if (!this.isRotating) return;
-
-        if (!this.updateTargetFromSource()) return;
-
-        let finalTarget = this.target;
-        if (!finalTarget) return this.stopRotation();
+    update() {
+        if (!this.request) return;
+        if (!this.refreshTarget()) return;
 
         const player = Player.getPlayer();
-        if (!player) return this.stopRotation();
+        if (!player || !this.targetAngles) {
+            this.stop();
+            return;
+        }
 
-        const currentRotation = RotationGCD.getCurrentRotation(player);
-        let currentYaw = currentRotation.yaw;
-        let currentPitch = currentRotation.pitch;
+        const current = RotationGCD.getCurrentRotation(player);
+        if (!current) {
+            this.stop();
+            return;
+        }
 
-        const targetYaw = RotationGCD.aimModulo360(currentYaw, finalTarget.yaw);
-        let deltaYaw = targetYaw - currentYaw;
-        let deltaPitch = finalTarget.pitch - currentPitch;
-        let distance = Math.hypot(deltaYaw, deltaPitch);
+        const targetYaw = RotationGCD.aimModulo360(current.yaw, this.targetAngles.yaw);
+        const deltaYaw = targetYaw - current.yaw;
+        const deltaPitch = RotationGCD.clampPitch(this.targetAngles.pitch) - current.pitch;
+        const distance = Math.hypot(deltaYaw, deltaPitch);
 
-        const isExactVector = this.targetVector !== null;
-        let effectivePrecision = this.precision;
-        if (isExactVector) effectivePrecision = Math.max(0.05, RotationGCD.calculateGCD());
-        else if (this.trackedEntity) effectivePrecision = 0.5;
-
-        if (distance <= effectivePrecision) {
-            if (isExactVector && player) {
-                const safe = { yaw: targetYaw, pitch: RotationGCD.clampPitch(finalTarget.pitch) };
-                player.setYaw(safe.yaw);
-                player.setPitch(safe.pitch);
-                RotationGCD.syncFromPlayer(safe.yaw, safe.pitch, player);
-            } else {
-                RotationGCD.applyToPlayer(targetYaw, finalTarget.pitch);
-            }
-
-            this.lastTime = Date.now();
-            if (!this.trackedEntity) {
-                this.stopRotation();
-            }
+        if (distance <= this.getPrecision()) {
+            RotationGCD.applyToPlayer(targetYaw, this.targetAngles.pitch);
+            this.onReachedTarget();
             return;
         }
 
         if (RotationModule.rotationMode === 'Instant') {
-            RotationGCD.applyToPlayer(targetYaw, finalTarget.pitch);
-            if (!this.trackedEntity && !this.targetVector) {
-                return this.stopRotation();
-            }
+            RotationGCD.applyToPlayer(targetYaw, this.targetAngles.pitch);
+            this.onReachedTarget();
             return;
         }
 
         const now = Date.now();
         if (this.lastTime === 0) {
-            this.lastTime = now;
-            this.startTime = now;
-            this.curveSeed = Math.random() * Math.PI * 2;
-            this.initialDistance = distance;
-            this.motionProfile = this.selectProfile(this.initialDistance);
+            this.resetTiming(now, distance);
             return;
         }
 
@@ -235,202 +182,187 @@ class RotationsTo {
             this.initialDistance = distance;
         }
 
-        let deltaTime = (now - this.lastTime) / 1000.0;
+        const deltaTime = Math.max(0, (now - this.lastTime) / 1000);
         this.lastTime = now;
 
-        let progress = Math.min(1.0, Math.max(0, 1 - distance / this.initialDistance));
-        let timeAlive = (now - this.startTime) / 1000.0;
-        let warmup;
-        let distModifier = Math.min(distance / RotationModule.DAMPING_DIST, 1.0);
+        const ratio = this.getStepRatio(distance, deltaTime);
+        const curve = this.getCurveOffset(this.getProgress(distance));
+        const nextYaw = current.yaw + deltaYaw * ratio + curve.x * ratio;
+        const nextPitch = RotationGCD.clampPitch(current.pitch + deltaPitch * ratio + curve.y * ratio);
 
-        if (this.targetVector || this.trackedEntity) {
-            warmup = Math.min(timeAlive * 4, 1.0);
-        } else {
-            warmup = 1.0;
-        }
-
-        let speedMult = Math.pow(distModifier, 0.5);
-        let baseSpeed = RotationModule.ROTATION_SPEED * this.speedMultiplier;
-        let step = (baseSpeed * speedMult * warmup + 10) * deltaTime;
-
-        let ratio = distance > 0 ? Math.min(distance, step) / distance : 0;
-
-        let nextYaw = currentYaw + deltaYaw * ratio;
-        let nextPitch = currentPitch + deltaPitch * ratio;
-
-        if (RotationModule.rotationMode !== 'Linear') {
-            const curve = this.getMathEquationOffset(progress);
-            if (!Number.isNaN(curve.x) && !Number.isNaN(curve.y)) {
-                nextYaw += curve.x * ratio;
-                nextPitch += curve.y * ratio;
-            }
-        }
-
-        nextPitch = RotationGCD.clampPitch(nextPitch);
-
-        if (!Number.isNaN(nextYaw) && !Number.isNaN(nextPitch)) {
+        if (Number.isFinite(nextYaw) && Number.isFinite(nextPitch)) {
             RotationGCD.applyToPlayer(nextYaw, nextPitch);
         }
     }
 
-    rotateToAngles(yaw, pitch, speedMultiplier = 1.0) {
-        if (!Number.isFinite(yaw) || !Number.isFinite(pitch)) return;
-        if (!this.isRotating) {
+    start(nextRequest, options = {}) {
+        const nextTarget = this.resolveTarget(nextRequest);
+        if (!nextTarget) return false;
+        const speedMultiplier = Number.isFinite(options?.speedMultiplier) ? options.speedMultiplier : 1;
+        const precision = Number.isFinite(options?.precision) && options.precision >= 0 ? options.precision : null;
+
+        const sameSource = this.isSameSource(nextRequest);
+        const shouldReset = !sameSource || !this.targetAngles || this.getTargetShift(nextTarget) > TARGET_SHIFT_RESET_DEGREES;
+
+        if (!this.request || !sameSource) {
             RotationGCD.syncFromPlayer();
         }
 
-        if (this.isRotating && this.target) {
-            const dYaw = Math.abs(RotationGCD.normalizeAngle(yaw - this.target.yaw));
-            const dPitch = Math.abs(pitch - this.target.pitch);
-            if (dYaw < 0.1 && dPitch < 0.1) {
-                this.target = { yaw, pitch };
-                this.speedMultiplier = speedMultiplier;
-                return;
-            }
+        this.request = nextRequest;
+        this.request.speedMultiplier = speedMultiplier;
+        this.request.precision = precision;
+        this.targetAngles = nextTarget;
+
+        if (shouldReset) {
+            this.resetTiming();
         }
 
-        this.target = { yaw, pitch };
-        this.targetVector = null;
-        this.trackedEntity = null;
-        this.speedMultiplier = speedMultiplier;
-        this.isRotating = true;
-
-        this.lastTime = 0;
-        this.initialDistance = 0;
-
-        if (RotationModule.rotationMode === 'Instant') {
-            RotationGCD.applyToPlayer(yaw, pitch);
-            return this.stopRotation();
-        }
+        return true;
     }
 
-    rotateToVector(vector, shiftTarget = true, speedMultiplier = 1.0) {
-        const vec = Utils.convertToVector(vector);
-        if (!vec) return;
+    refreshTarget() {
+        if (!this.request) return false;
 
-        const wasRotatingToVector = this.isRotating && this.targetVector && !this.trackedEntity;
-        if (!wasRotatingToVector) {
-            RotationGCD.syncFromPlayer();
+        if (this.request.type === 'entity' && !this.isEntityUsable(this.request.value)) {
+            this.stop();
+            return false;
         }
 
-        this.targetVector = vec;
-        this.trackedEntity = null;
-        this.speedMultiplier = speedMultiplier;
-        this.isRotating = true;
-
-        const initialTarget = this.getAnglesFromVector(vec);
-        if (initialTarget) {
-            let shouldResetTiming = !wasRotatingToVector;
-
-            if (wasRotatingToVector && this.target) {
-                const deltaYaw = Math.abs(RotationGCD.normalizeAngle(initialTarget.yaw - this.target.yaw));
-                const deltaPitch = Math.abs(initialTarget.pitch - this.target.pitch);
-                const shift = Math.hypot(deltaYaw, deltaPitch);
-
-                if (shift > 5) {
-                    shouldResetTiming = true;
-                }
-            }
-
-            this.target = initialTarget;
-
-            if (shouldResetTiming) {
-                this.lastTime = 0;
-                this.initialDistance = 0;
-            }
+        const target = this.resolveTarget(this.request);
+        if (!target) {
+            this.stop();
+            return false;
         }
+
+        this.targetAngles = target;
+        return true;
     }
 
-    rotateToEntity(entity, speedMultiplier = 1.0) {
-        if (!entity) return;
+    resolveTarget(request) {
+        if (!request) return null;
+        if (request.type === 'angles') return request.value;
+        if (request.type === 'vector') return this.getAnglesFromVector(request.value);
+        if (request.type === 'entity') {
+            const aimPoint = this.getAimPoint(request.value);
+            return aimPoint ? this.getAnglesFromVector(aimPoint) : null;
+        }
+        return null;
+    }
+
+    isSameSource(nextRequest) {
+        if (!this.request || this.request.type !== nextRequest.type) return false;
+        if (nextRequest.type === 'entity') return this.request.value === nextRequest.value;
+        return true;
+    }
+
+    isEntityUsable(entity) {
+        if (!entity) return false;
 
         try {
             const mcEntity = entity.toMC ? entity.toMC() : entity;
-            if (mcEntity.isDead()) return;
+            return !mcEntity?.isDead?.();
         } catch (e) {
             console.error('V5 Caught error' + e + e.stack);
+            return false;
+        }
+    }
+
+    getTargetShift(nextTarget) {
+        const dYaw = Math.abs(RotationGCD.angleDifference(nextTarget.yaw, this.targetAngles.yaw));
+        const dPitch = Math.abs(nextTarget.pitch - this.targetAngles.pitch);
+        return Math.hypot(dYaw, dPitch);
+    }
+
+    getPrecision() {
+        if (Number.isFinite(this.request?.precision)) return this.request.precision;
+        if (this.request?.type === 'entity') return ENTITY_PRECISION;
+        return DEFAULT_PRECISION;
+    }
+
+    getStepRatio(distance, deltaTime) {
+        if (distance <= 0) return 0;
+
+        const timeAlive = this.startTime > 0 ? (Date.now() - this.startTime) / 1000 : 0;
+        const warmup = this.request?.type === 'angles' ? 1 : Math.min(timeAlive * 4, 1);
+        const damping = Math.min(distance / RotationModule.DAMPING_DIST, 1);
+        const speed = RotationModule.ROTATION_SPEED * (this.request?.speedMultiplier ?? 1) * Math.sqrt(damping);
+        const step = (speed * warmup + 10) * deltaTime;
+
+        return Math.min(distance, step) / distance;
+    }
+
+    getProgress(distance) {
+        if (this.initialDistance <= 0) return 1;
+        return Math.max(0, Math.min(1, 1 - distance / this.initialDistance));
+    }
+
+    getCurveOffset(progress) {
+        if (RotationModule.rotationMode === 'Linear' || RotationModule.rotationMode === 'Instant') return { x: 0, y: 0 };
+
+        const ease = Math.sin(progress * Math.PI);
+        const fade = 1 - progress;
+        const strength = this.initialDistance * 0.18 * ease * fade;
+
+        return {
+            x: Math.cos(this.curveSeed) * strength,
+            y: Math.sin(this.curveSeed) * strength,
+        };
+    }
+
+    onReachedTarget() {
+        if (this.request?.type === 'entity') {
+            this.resetTiming();
             return;
         }
 
-        const alreadyTrackingThis = this.isRotating && this.trackedEntity && this.isTrackingEntity(entity);
-        if (!alreadyTrackingThis) {
-            RotationGCD.syncFromPlayer();
-        }
-
-        this.trackedEntity = entity;
-        this.targetVector = null;
-        this.speedMultiplier = speedMultiplier;
-        this.isRotating = true;
-
-        const aimPoint = this.getEntityAimPoint(entity);
-        if (aimPoint) {
-            this.target = this.getAnglesFromVector(aimPoint);
-        }
-
-        if (!alreadyTrackingThis) {
-            this.lastTime = 0;
-            this.initialDistance = 0;
-        }
+        this.complete();
     }
 
-    isTrackingEntity(entity) {
-        if (!this.trackedEntity || !entity) return false;
-
-        try {
-            const currentUUID = this.trackedEntity.getUUID
-                ? this.trackedEntity.getUUID().toString()
-                : this.trackedEntity.toMC
-                  ? this.trackedEntity.toMC().getUuid().toString()
-                  : null;
-
-            let entityUUID = null;
-            if (entity.getUUID) entityUUID = entity.getUUID().toString();
-            else if (entity.toMC) entityUUID = entity.toMC().getUuid().toString();
-
-            if (currentUUID && entityUUID) {
-                return currentUUID === entityUUID;
-            }
-        } catch (e) {
-            console.error('V5 Caught error' + e + e.stack);
-        }
-
-        return this.trackedEntity === entity;
-    }
-
-    onEndRotation(callBack, name = null) {
-        if (typeof callBack === 'function') {
-            this.actions.push({ func: callBack, name });
-        }
-    }
-
-    stopRotation() {
-        this.isRotating = false;
-        this.target = null;
-        this.targetVector = null;
-        this.trackedEntity = null;
-        this.lastTime = 0;
-        this.initialDistance = 0;
+    complete() {
+        const callbacks = this.callbacks.splice(0);
+        this.clearRequest();
         RotationGCD.syncFromPlayer();
-        while (this.actions.length > 0) {
+
+        for (let i = 0; i < callbacks.length; i++) {
+            const action = callbacks[i];
             try {
-                this.actions.shift().func();
+                action.callback();
             } catch (e) {
+                console.error(`Rotation ${action.name || 'callback'} error:`);
                 console.error('V5 Caught error' + e + e.stack);
             }
         }
     }
 
+    clearRequest() {
+        this.request = null;
+        this.targetAngles = null;
+        this.lastTime = 0;
+        this.startTime = 0;
+        this.initialDistance = 0;
+    }
+
+    resetTiming(now = 0, distance = 0) {
+        this.lastTime = now;
+        this.startTime = now;
+        this.initialDistance = distance;
+        this.curveSeed = Math.random() * Math.PI * 2;
+    }
+
     getAnglesFromVector(vector) {
-        let vec = Utils.convertToVector(vector);
-        let p = Player.getPlayer();
-        if (!vec || !p) return null;
-        let dx = vec.x - p.getX();
-        let dy = vec.y - p.getEyePos().y;
-        let dz = vec.z - p.getZ();
-        let yaw = Math.atan2(-dx, dz) * (180 / Math.PI);
-        let pitch = Math.atan2(-dy, Math.hypot(dx, dz)) * (180 / Math.PI);
-        return { yaw, pitch };
+        const vec = Utils.convertToVector(vector);
+        const player = Player.getPlayer();
+        if (!vec || !player) return null;
+
+        const dx = vec.x - player.getX();
+        const dy = vec.y - player.getEyePos().y;
+        const dz = vec.z - player.getZ();
+
+        return {
+            yaw: Math.atan2(-dx, dz) * (180 / Math.PI),
+            pitch: RotationGCD.clampPitch(Math.atan2(-dy, Math.hypot(dx, dz)) * (180 / Math.PI)),
+        };
     }
 }
 
-export const Rotations = new RotationsTo();
+export const Rotations = new RotationController();

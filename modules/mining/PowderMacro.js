@@ -2,6 +2,7 @@ import { isDeveloperModeEnabled } from '../../utils/DeveloperModeState';
 import { ModuleBase } from '../../utils/ModuleBase';
 import { Keybind } from '../../utils/player/Keybinding';
 import { Rotations } from '../../utils/player/Rotations';
+import { RotationGCD } from '../../utils/player/RotationGCD';
 import { manager } from '../../utils/SkyblockEvents';
 
 const CHEST_BLOCK_IDS = new Set([54, 146]);
@@ -102,7 +103,7 @@ class PowderMacro extends ModuleBase {
         if (!this.enabled) return;
 
         this.targetChest = null;
-        Rotations.stopRotation();
+        Rotations.stop();
 
         if (!Keybind.isKeyDown('shift')) Keybind.setKey('shift', true);
         if (!Keybind.isKeyDown('leftclick')) Keybind.setKey('leftclick', true);
@@ -144,7 +145,7 @@ class PowderMacro extends ModuleBase {
     onDisable() {
         Keybind.setKey('leftclick', false);
         Keybind.setKey('shift', false);
-        Rotations.stopRotation();
+        Rotations.stop();
         this.resetState();
 
         this.message('&cPowder Macro Disabled!');
@@ -187,7 +188,7 @@ class PowderMacro extends ModuleBase {
         const targetYaw = this.pivot.yaw + Math.cos(angle) * this.width;
         const targetPitch = Math.min(this.pivot.pitch + dPitch, this.maxPitch);
 
-        Rotations.applyRotationWithGCD(targetYaw, targetPitch);
+        RotationGCD.applyToPlayer(targetYaw, targetPitch);
     }
 
     tickChest() {
@@ -210,7 +211,7 @@ class PowderMacro extends ModuleBase {
         const current = { yaw: player.getYaw(), pitch: player.getPitch() };
         const target = this.savedRotation ?? this.pivot;
 
-        const diffYaw = Rotations.normalizeAngle(target.yaw - current.yaw);
+        const diffYaw = RotationGCD.angleDifference(target.yaw, current.yaw);
         const diffPitch = target.pitch - current.pitch;
         const distance = Math.hypot(diffYaw, diffPitch);
 
@@ -218,7 +219,7 @@ class PowderMacro extends ModuleBase {
             this.syncLoopAngle(current);
             this.setState(State.MINING);
         } else {
-            Rotations.applyRotationWithGCD(current.yaw + diffYaw * RETURN_SPEED, current.pitch + diffPitch * RETURN_SPEED);
+            RotationGCD.applyToPlayer(current.yaw + diffYaw * RETURN_SPEED, current.pitch + diffPitch * RETURN_SPEED);
         }
     }
 
@@ -280,7 +281,7 @@ class PowderMacro extends ModuleBase {
     }
 
     rotateToTarget(target) {
-        const current = Rotations.targetVector;
+        const current = Rotations.currentVector;
         const needsUpdate =
             !current ||
             Math.abs(current.x - target.x) > VECTOR_TOLERANCE ||
@@ -288,7 +289,7 @@ class PowderMacro extends ModuleBase {
             Math.abs(current.z - target.z) > VECTOR_TOLERANCE;
 
         if (needsUpdate) {
-            Rotations.rotateToVector(target);
+            Rotations.lookAtVector(target);
         }
     }
 }

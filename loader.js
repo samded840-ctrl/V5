@@ -36,20 +36,4 @@ registerV5Commands();
 MacroState.setupLastMacroToggleKey();
 loadSettings();
 
-import { Chat } from './utils/Chat';
-import { isDeveloperModeEnabled } from './utils/DeveloperModeState';
-
-function warnDeveloper() {
-    setTimeout(() => {
-        if (!World.isLoaded()) {
-            warnDeveloper();
-        } else {
-            Chat.message("&cDeveloper Mode is enabled. Run '/V5 developerMode false' to disable.");
-            Chat.message('&cDeveloper Mode is UAYOR and disables auto updates.');
-        }
-    }, 1000);
-}
-
-if (isDeveloperModeEnabled()) {
-    warnDeveloper();
-}
+import './utils/DeveloperModeState';

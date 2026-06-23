@@ -12,7 +12,7 @@ const saveDeveloperModeState = () => {
     }
 };
 
-export const loadDeveloperModeState = () => {
+const loadDeveloperModeState = () => {
     loadedFromDisk = true;
 
     try {
@@ -41,7 +41,22 @@ export const setDeveloperModeEnabled = (value) => {
     return developerModeEnabled;
 };
 
-export const isDeveloperModeEnabled = () => {
+const isDeveloperModeEnabled = () => {
     if (!loadedFromDisk) loadDeveloperModeState();
     return developerModeEnabled;
 };
+
+function warnDeveloper() {
+    if (!isDeveloperModeEnabled()) return;
+    setTimeout(() => {
+        if (!World.isLoaded()) {
+            warnDeveloper();
+        } else {
+            Chat.message("&cDeveloper Mode is enabled. Run '/V5 developerMode false' to disable.");
+            Chat.message('&cDeveloper Mode is UAYOR and disables auto updates.');
+            Chat.message('&cSupport is not provided for developer mode macros as they are unfinished AND DONT WORK.');
+        }
+    }, 7000);
+}
+
+warnDeveloper();

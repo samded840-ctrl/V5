@@ -1,5 +1,3 @@
-// V5 Bazaar Flipper
-// Scans bazaar for profitable flips based on available purse
 import { ModuleBase } from '../../utils/ModuleBase';
 import { MacroState } from '../../utils/MacroState';
 import { ScheduleTask } from '../../utils/ScheduleTask';
@@ -8,11 +6,7 @@ const BAZAAR_API_URL = 'https://api.hypixel.net/skyblock/bazaar';
 const MIN_PROFIT_MARGIN = 0.05;
 const MIN_VOLUME = 1000;
 const MAX_LISTINGS_TO_BUY = 71680;
-const SCAN_INTERVALS = {
-    FAST: 1000,
-    NORMAL: 5000,
-    SLOW: 30000
-};
+const SCAN_INTERVALS = { FAST: 1000, NORMAL: 5000, SLOW: 30000 };
 
 class BazaarFlipper extends ModuleBase {
     constructor() {
@@ -94,10 +88,10 @@ class BazaarFlipper extends ModuleBase {
         this.message('&cBazaar Flipper disabled');
     }
 
-    async runLoop(token) {
+    runLoop(token) {
         if (!this.enabled || token !== this.loopToken) return;
 
-        const currentTime = Date.now();
+        var currentTime = Date.now();
         this.updatePurse();
 
         if (this.flipOpportunities.length > 0 && this.autoExecuteEnabled) {
@@ -110,145 +104,139 @@ class BazaarFlipper extends ModuleBase {
 
         if (currentTime - this.lastScanTime >= this.scanInterval) {
             this.status = 'Scanning Bazaar...';
-            await this.performScan();
+            this.performScan();
             this.lastScanTime = currentTime;
         }
 
         if (this.autoExecuteEnabled && this.flipOpportunities.length > 0) {
             this.status = 'Executing Flips';
-            await this.executeFlips();
+            this.executeFlips();
         } else if (this.flipOpportunities.length > 0) {
-            this.status = `Found ${this.flipOpportunities.length} Opportunities`;
+            this.status = 'Found ' + this.flipOpportunities.length + ' Opportunities';
         } else {
             this.status = 'No Profitable Flips';
         }
     }
 
-    async performScan() {
-        try {
-            const response = await this.fetchBazaarData();
+    performScan() {
+        var self = this;
+        this.fetchBazaarData().then(function(response) {
             if (!response || !response.success) {
-                this.status = 'API Error';
+                self.status = 'API Error';
                 return;
             }
-
-            this.bazaarData = response.products;
-            this.analyzeFlips();
-
-        } catch (error) {
-            this.status = 'Scan Failed';
-        }
+            self.bazaarData = response.products;
+            self.analyzeFlips();
+        }).catch(function(error) {
+            self.status = 'Scan Failed';
+        });
     }
 
-    async fetchBazaarData() {
-        try {
-            const response = await fetch(BAZAAR_API_URL);
-            return await response.json();
-        } catch (error) {
+    fetchBazaarData() {
+        return fetch(BAZAAR_API_URL).then(function(response) {
+            return response.json();
+        }).catch(function(error) {
             return null;
-        }
+        });
     }
 
     analyzeFlips() {
         if (!this.bazaarData) return;
 
-        const opportunities = [];
-        let totalProfit = 0;
-        const purse = this.currentPurse;
+        var opportunities = [];
+        var totalProfit = 0;
+        var purse = this.currentPurse;
 
-        for (const [itemId, itemData] of Object.entries(this.bazaarData)) {
+        for (var itemId in this.bazaarData) {
+            var itemData = this.bazaarData[itemId];
             if (!itemData.quick_status) continue;
 
-            const buyPrice = itemData.quick_status.buyPrice;
-            const sellPrice = itemData.quick_status.sellPrice;
-            const buyVolume = itemData.quick_status.buyVolume;
-            const sellVolume = itemData.quick_status.sellVolume;
+            var buyPrice = itemData.quick_status.buyPrice;
+            var sellPrice = itemData.quick_status.sellPrice;
+            var buyVolume = itemData.quick_status.buyVolume;
+            var sellVolume = itemData.quick_status.sellVolume;
 
             if (buyVolume < this.minVolume || sellVolume < this.minVolume) continue;
             if (buyPrice <= 0 || sellPrice <= 0) continue;
 
-            const profitMargin = (sellPrice - buyPrice) / buyPrice;
+            var profitMargin = (sellPrice - buyPrice) / buyPrice;
             
             if (profitMargin >= this.minProfitMargin) {
-                const maxAffordable = Math.floor(purse / buyPrice);
-                const maxByVolume = Math.min(buyVolume, sellVolume);
-                const maxBuyable = Math.min(maxAffordable, maxByVolume, MAX_LISTINGS_TO_BUY);
-                const maxBySpendLimit = Math.floor(this.maxSpendPerFlip / buyPrice);
-                const quantity = Math.min(maxBuyable, maxBySpendLimit);
+                var maxAffordable = Math.floor(purse / buyPrice);
+                var maxByVolume = Math.min(buyVolume, sellVolume);
+                var maxBuyable = Math.min(maxAffordable, maxByVolume, MAX_LISTINGS_TO_BUY);
+                var maxBySpendLimit = Math.floor(this.maxSpendPerFlip / buyPrice);
+                var quantity = Math.min(maxBuyable, maxBySpendLimit);
                 
                 if (quantity <= 0) continue;
 
-                const totalCost = quantity * buyPrice;
-                const totalRevenue = quantity * sellPrice;
-                const profit = totalRevenue - totalCost;
-                const roi = (profit / totalCost) * 100;
+                var totalCost = quantity * buyPrice;
+                var totalRevenue = quantity * sellPrice;
+                var profit = totalRevenue - totalCost;
+                var roi = (profit / totalCost) * 100;
 
                 opportunities.push({
-                    itemId,
+                    itemId: itemId,
                     itemName: this.formatItemName(itemId),
-                    buyPrice,
-                    sellPrice,
+                    buyPrice: buyPrice,
+                    sellPrice: sellPrice,
                     profitMargin: profitMargin * 100,
-                    quantity,
-                    totalCost,
-                    totalRevenue,
-                    profit,
-                    roi,
-                    buyVolume,
-                    sellVolume,
+                    quantity: quantity,
+                    totalCost: totalCost,
+                    totalRevenue: totalRevenue,
+                    profit: profit,
+                    roi: roi,
+                    buyVolume: buyVolume,
+                    sellVolume: sellVolume,
                 });
             }
         }
 
-        opportunities.sort((a, b) => b.profit - a.profit);
-        
+        opportunities.sort(function(a, b) { return b.profit - a.profit; });
         this.flipOpportunities = opportunities;
-        this.totalProfitPotential = opportunities.reduce((sum, flip) => sum + flip.profit, 0);
+        this.totalProfitPotential = opportunities.reduce(function(sum, flip) { return sum + flip.profit; }, 0);
     }
 
-    async executeFlips() {
+    executeFlips() {
         if (!this.autoExecuteEnabled || this.flipOpportunities.length === 0) return;
 
-        const bestFlip = this.flipOpportunities[0];
-        
+        var bestFlip = this.flipOpportunities[0];
         if (this.currentPurse < bestFlip.totalCost) {
             this.flipOpportunities = [];
             this.totalProfitPotential = 0;
             return;
         }
 
-        this.message(`&6Executing flip: &f${bestFlip.itemName} &7x${bestFlip.quantity} &8| &6Profit: &a${this.formatCoins(bestFlip.profit)}`);
-        
-        await this.placeBuyOrder(bestFlip);
-        await this.placeSellOrder(bestFlip);
-        
+        this.message('&6Executing flip: &f' + bestFlip.itemName + ' &7x' + bestFlip.quantity + ' &8| &6Profit: &a' + this.formatCoins(bestFlip.profit));
+        this.placeBuyOrder(bestFlip);
+        this.placeSellOrder(bestFlip);
         this.flipOpportunities.shift();
-        await this.performScan();
+        this.performScan();
     }
 
-    async placeBuyOrder(flip) {
-        this.message(`&7Placing buy order for ${flip.quantity}x ${flip.itemName} at ${this.formatCoins(flip.buyPrice)} each`);
+    placeBuyOrder(flip) {
+        this.message('&7Placing buy order for ' + flip.quantity + 'x ' + flip.itemName + ' at ' + this.formatCoins(flip.buyPrice) + ' each');
     }
 
-    async placeSellOrder(flip) {
-        this.message(`&7Placing sell order for ${flip.quantity}x ${flip.itemName} at ${this.formatCoins(flip.sellPrice)} each`);
+    placeSellOrder(flip) {
+        this.message('&7Placing sell order for ' + flip.quantity + 'x ' + flip.itemName + ' at ' + this.formatCoins(flip.sellPrice) + ' each');
     }
 
     updatePurse() {
-        const player = Player.getPlayer();
+        var player = Player.getPlayer();
         if (player) {
             this.currentPurse = player.getPurse() || 0;
         }
     }
 
     getTopFlipsDisplay() {
-        const topFlips = this.flipOpportunities.slice(0, 5);
-        const display = {};
+        var topFlips = this.flipOpportunities.slice(0, 5);
+        var display = {};
         
-        topFlips.forEach((flip, index) => {
-            display[`${index + 1}. ${flip.itemName}`] = 
-                `Profit: ${this.formatCoins(flip.profit)} (${flip.roi.toFixed(1)}% ROI)`;
-        });
+        topFlips.forEach(function(flip, index) {
+            display[(index + 1) + '. ' + flip.itemName] = 
+                'Profit: ' + this.formatCoins(flip.profit) + ' (' + flip.roi.toFixed(1) + '% ROI)';
+        }, this);
 
         if (Object.keys(display).length === 0) {
             display['No Flips'] = 'Waiting for opportunities...';
@@ -260,21 +248,21 @@ class BazaarFlipper extends ModuleBase {
     formatItemName(itemId) {
         return itemId
             .replace(/_/g, ' ')
-            .replace(/\b\w/g, char => char.toUpperCase())
+            .replace(/\b\w/g, function(char) { return char.toUpperCase(); })
             .replace('Enchanted', 'Ench.')
             .trim();
     }
 
     formatCoins(coins) {
-        if (coins >= 1000000) return `${(coins / 1000000).toFixed(1)}M`;
-        if (coins >= 1000) return `${(coins / 1000).toFixed(1)}K`;
+        if (coins >= 1000000) return (coins / 1000000).toFixed(1) + 'M';
+        if (coins >= 1000) return (coins / 1000).toFixed(1) + 'K';
         return coins.toString();
     }
 
     getTimeSinceLastScan() {
         if (this.lastScanTime === 0) return 'Never';
-        const seconds = Math.floor((Date.now() - this.lastScanTime) / 1000);
-        return `${seconds}s ago`;
+        var seconds = Math.floor((Date.now() - this.lastScanTime) / 1000);
+        return seconds + 's ago';
     }
 }
 

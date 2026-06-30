@@ -37,23 +37,21 @@ class BazaarFlipper extends ModuleBase {
         
         this.on('tick', () => this.runLoop(this.loopToken));
 
-        this.addToggle('Auto Execute Flips', false, (enabled) => {
-            this.autoExecuteEnabled = enabled;
-            this.message(enabled ? '&aAuto-execute enabled' : '&cAuto-execute disabled');
-        });
-
-       this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, (value) => {
+       this.addToggle('Auto Execute Flips', false, function(enabled) {
+    this.autoExecuteEnabled = enabled;
+    this.message(enabled ? '&aAuto-execute enabled' : '&cAuto-execute disabled');
+});
+     this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, function(value) {
     this.maxSpendPerFlip = value;
 });
 
-this.addSlider('Min Profit Margin %', 1, 100, 5, 1, (value) => {
+this.addSlider('Min Profit Margin %', 1, 100, 5, 1, function(value) {
     this.minProfitMargin = value / 100;
 });
 
-this.addSlider('Min Daily Volume', 100, 1000000, 1000, 100, (value) => {
+this.addSlider('Min Daily Volume', 100, 1000000, 1000, 100, function(value) {
     this.minVolume = value;
 });
-
         this.createOverlay([
             {
                 title: 'Bazaar Flipper',

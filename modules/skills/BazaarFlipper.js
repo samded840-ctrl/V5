@@ -4,8 +4,6 @@ import { ModuleBase } from '../../utils/ModuleBase';
 import { MacroState } from '../../utils/MacroState';
 import { ScheduleTask } from '../../utils/ScheduleTask';
 
-ChatLib.chat('&a[V5] BazaarFlipper.js file is being loaded...');
-
 const BAZAAR_API_URL = 'https://api.hypixel.net/skyblock/bazaar';
 const MIN_PROFIT_MARGIN = 0.05;
 const MIN_VOLUME = 1000;
@@ -19,7 +17,6 @@ const SCAN_INTERVALS = {
 class BazaarFlipper extends ModuleBase {
     constructor() {
         super({
-            ChatLib.chat('&a[V5] BazaarFlipper constructor running!');
             name: 'Bazaar Flipper',
             subcategory: 'Skills',
             description: 'Scans the Bazaar for profitable flips based on your current purse.',

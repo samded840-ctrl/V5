@@ -2,7 +2,7 @@ import { ModuleBase } from '../../utils/ModuleBase';
 import { MacroState } from '../../utils/MacroState';
 import { ScheduleTask } from '../../utils/ScheduleTask';
 
-const BAZAAR_API_URL = 'https://api.hypixel.net/skyblock/bazaar';
+const BAZAAR_API_URL = 'https://api.hypixel.net/skyblock/bazaar?key=d91945cc-7de2-45ff-a89d-1e883ad5ddae';
 const MIN_PROFIT_MARGIN = 0.05;
 const MIN_VOLUME = 1000;
 const MAX_LISTINGS_TO_BUY = 71680;
@@ -37,11 +37,11 @@ class BazaarFlipper extends ModuleBase {
         
         this.on('tick', () => this.runLoop(this.loopToken));
 
-       this.addToggle('Auto Execute Flips', false, function(enabled) {
-    this.autoExecuteEnabled = enabled;
-    this.message(enabled ? '&aAuto-execute enabled' : '&cAuto-execute disabled');
-});
-     this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, function(value) {
+  this.addToggle('Auto Execute Flips', function(value) {
+    this.autoExecuteEnabled = value;
+}, 'Automatically buy and sell flips.', false);
+
+this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, function(value) {
     this.maxSpendPerFlip = value;
 });
 

@@ -42,17 +42,17 @@ class BazaarFlipper extends ModuleBase {
             this.message(enabled ? '&aAuto-execute enabled' : '&cAuto-execute disabled');
         });
 
-        this.addNumberSetting('Max Spend Per Flip', 100000, 1000, 1000000000, 1000, (value) => {
-            this.maxSpendPerFlip = value;
-        });
+       this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, (value) => {
+    this.maxSpendPerFlip = value;
+});
 
-        this.addNumberSetting('Min Profit Margin %', 5, 1, 100, 1, (value) => {
-            this.minProfitMargin = value / 100;
-        });
+this.addSlider('Min Profit Margin %', 1, 100, 5, 1, (value) => {
+    this.minProfitMargin = value / 100;
+});
 
-        this.addNumberSetting('Min Daily Volume', 1000, 100, 1000000, 100, (value) => {
-            this.minVolume = value;
-        });
+this.addSlider('Min Daily Volume', 100, 1000000, 1000, 100, (value) => {
+    this.minVolume = value;
+});
 
         this.createOverlay([
             {

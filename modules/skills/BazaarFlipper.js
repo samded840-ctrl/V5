@@ -2,7 +2,7 @@ import { ModuleBase } from '../../utils/ModuleBase';
 import { MacroState } from '../../utils/MacroState';
 import { ScheduleTask } from '../../utils/ScheduleTask';
 
-const BAZAAR_API_URL = 'https://api.hypixel.net/skyblock/bazaar?key=d91945cc-7de2-45ff-a89d-1e883ad5ddae';
+const BAZAAR_API_URL = 'https://api.hypixel.net/skyblock/bazaar?key=YOUR_API_KEY_HERE';
 const MIN_PROFIT_MARGIN = 0.05;
 const MIN_VOLUME = 1000;
 const MAX_LISTINGS_TO_BUY = 71680;
@@ -35,37 +35,41 @@ class BazaarFlipper extends ModuleBase {
         this.minVolume = MIN_VOLUME;
         this.currentPurse = 0;
         
-        this.on('tick', () => this.runLoop(this.loopToken));
+        this.on('tick', function() {
+            this.runLoop(this.loopToken);
+        }.bind(this));
 
-  this.addToggle('Auto Execute Flips', function(value) {
-    this.autoExecuteEnabled = value;
-}, 'Automatically buy and sell flips.', false);
+        this.addToggle('Auto Execute Flips', function(value) {
+            this.autoExecuteEnabled = value;
+            this.message(value ? '&aAuto-execute enabled' : '&cAuto-execute disabled');
+        }, 'Automatically buy and sell flips.', false);
 
-this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, function(value) {
-    this.maxSpendPerFlip = value;
-});
+        this.addSlider('Max Spend Per Flip', 1000, 1000000000, 100000, 1000, function(value) {
+            this.maxSpendPerFlip = Number(value);
+        }, 'Maximum coins to spend per flip.');
 
-this.addSlider('Min Profit Margin %', 1, 100, 5, 1, function(value) {
-    this.minProfitMargin = value / 100;
-});
+        this.addSlider('Min Profit Margin %', 1, 100, 5, 1, function(value) {
+            this.minProfitMargin = Number(value) / 100;
+        }, 'Minimum profit percentage required.');
 
-this.addSlider('Min Daily Volume', 100, 1000000, 1000, 100, function(value) {
-    this.minVolume = value;
-});
+        this.addSlider('Min Daily Volume', 100, 1000000, 1000, 100, function(value) {
+            this.minVolume = Number(value);
+        }, 'Minimum daily trading volume.');
+
         this.createOverlay([
             {
                 title: 'Bazaar Flipper',
                 data: {
-                    Status: () => this.status,
-                    'Current Purse': () => this.formatCoins(this.currentPurse),
-                    Opportunities: () => this.flipOpportunities.length,
-                    'Potential Profit': () => this.formatCoins(this.totalProfitPotential),
-                    'Last Scan': () => this.getTimeSinceLastScan(),
+                    Status: function() { return this.status; }.bind(this),
+                    'Current Purse': function() { return this.formatCoins(this.currentPurse); }.bind(this),
+                    Opportunities: function() { return this.flipOpportunities.length; }.bind(this),
+                    'Potential Profit': function() { return this.formatCoins(this.totalProfitPotential); }.bind(this),
+                    'Last Scan': function() { return this.getTimeSinceLastScan(); }.bind(this),
                 },
             },
             {
                 title: 'Top Flips',
-                data: () => this.getTopFlipsDisplay(),
+                data: function() { return this.getTopFlipsDisplay(); }.bind(this),
             },
         ]);
     }
@@ -221,20 +225,28 @@ this.addSlider('Min Daily Volume', 100, 1000000, 1000, 100, function(value) {
     }
 
     updatePurse() {
-        var player = Player.getPlayer();
-        if (player) {
-            this.currentPurse = player.getPurse() || 0;
-        }
+        var self = this;
+        var lines = Scoreboard.getLines();
+        if (!lines) return;
+        
+        lines.forEach(function(line) {
+            var text = ChatLib.removeFormatting(line.getName());
+            if (text.indexOf('Purse:') !== -1 || text.indexOf('Piggy:') !== -1) {
+                var coins = text.replace(/[^0-9]/g, '');
+                self.currentPurse = parseInt(coins) || 0;
+            }
+        });
     }
 
     getTopFlipsDisplay() {
         var topFlips = this.flipOpportunities.slice(0, 5);
         var display = {};
+        var self = this;
         
         topFlips.forEach(function(flip, index) {
             display[(index + 1) + '. ' + flip.itemName] = 
-                'Profit: ' + this.formatCoins(flip.profit) + ' (' + flip.roi.toFixed(1) + '% ROI)';
-        }, this);
+                'Profit: ' + self.formatCoins(flip.profit) + ' (' + flip.roi.toFixed(1) + '% ROI)';
+        });
 
         if (Object.keys(display).length === 0) {
             display['No Flips'] = 'Waiting for opportunities...';

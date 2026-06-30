@@ -46,7 +46,7 @@ import './skills/JerryBoxMacro';
 import './skills/MinionCollector';
 import './skills/RouteWalker';
 import './skills/WynnProfessionMacro';
-
+import './skills/BazaarFlipper';
 /* OTHER */
 import './other/AutoBeg';
 import './other/AutoConversation';
